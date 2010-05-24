@@ -11,3 +11,10 @@ All versions work the same:
 - hit RETURN to print (to STDOUT) either the selected match,
   or whatever is entered in the GtkEntry.
 
+Build C version:
+  cd gmenu-c
+  gcc -Wall -o gmenu gmenu.c $(pkg-config --cflags --libs gtk+-2.0)
+
+Build Vala version:
+  cd gmenu-vala
+  valac --pkg gtk+-2.0 gmenu.vala
