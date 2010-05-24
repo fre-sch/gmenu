@@ -81,12 +81,12 @@ class GMenu( gtk.Window ):
     def select_last( self ):
         sel = self.view.get_selection()
         mdl, itr = sel.get_selected()
-        itr = mdl.get_iter_first()
-        last = None
-        while itr:
-            last = itr
-            itr = mdl.iter_next( itr )
-        last and sel.select_iter( last )
+        n = mdl.iter_n_children( None )
+        if n:
+            itr = mdl.iter_nth_child( None, n - 1 )
+            if itr:
+                self.view.scroll_to_cell( mdl.get_path( itr ) )
+                sel.select_iter( itr )
 
     def select_previous( self ):
         sel = self.view.get_selection()
