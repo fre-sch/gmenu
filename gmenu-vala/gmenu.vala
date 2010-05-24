@@ -10,13 +10,31 @@ enum Keysym {
   RShift = 65506,
 }
 
-class GMenu : Object {
+class GtkExample : Object {
   private uint timeout_id;
   private ulong on_entry_changed_id;
   private Gtk.Entry entry;
   private Gtk.TreeView tree_view;
   private Gtk.TreeModelFilter filter;
   
+  private bool filter_func( Gtk.TreeModel m, Gtk.TreeIter i ) {
+    string haystack;
+    var needle = entry.text;
+    if ( needle.len() == 0 ) {
+      return true;
+    }
+    m.get( i, 0, out haystack, -1 );
+    return haystack.casefold().contains( needle.casefold() );
+  }
+  private void queue_refilter() {
+    if ( timeout_id != 0 )
+      Source.remove( timeout_id );
+    timeout_id = Timeout.add( 300, () => {
+      filter.refilter();
+      timeout_id = 0;
+      return false;
+    } );
+  }
   private void fill_treemodel( Gtk.ListStore m ) {
     string line;
     while ( (line = stdin.read_line() ) != null ) {
@@ -40,12 +58,24 @@ class GMenu : Object {
     tree_view.enable_search = false;
     tree_view.headers_visible = false;
     tree_view.get_selection().type = Gtk.SelectionMode.SINGLE;
-    tree_view.get_selection().changed.connect( on_treeview_selection_changed );
+    tree_view.get_selection().changed.connect( () => {
+      Gtk.TreeModel m;
+      Gtk.TreeIter i;
+      var sel = tree_view.get_selection();
+      var selected = sel.get_selected( out m, out i );
+      if ( selected ) {
+        string val;
+        m.get( i, 0, out val, -1 );
+        SignalHandler.block( entry, on_entry_changed_id );
+        entry.text = val;
+        SignalHandler.unblock( entry, on_entry_changed_id );
+        entry.select_region(0, -1);
+      }
+    } );
     
     var cr = new Gtk.CellRendererText();
     cr.ellipsize = Pango.EllipsizeMode.START;
-    tree_view.insert_column_with_data_func(
-      -1, "Data", cr, cell_data_func );
+    tree_view.insert_column_with_attributes( -1, "Data", cr, "text", 0, null );
     
     var sw = new Gtk.ScrolledWindow( null, null );
     sw.set_policy( Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC );
@@ -54,72 +84,8 @@ class GMenu : Object {
     
     return sw;
   }
-  private void on_treeview_selection_changed() {
-    Gtk.TreeModel m;
-    Gtk.TreeIter i;
-    var sel = tree_view.get_selection();
-    var selected = sel.get_selected( out m, out i );
-    if ( selected ) {
-      string val;
-      m.get( i, 0, out val, -1 );
-      SignalHandler.block( entry, on_entry_changed_id );
-      entry.text = val;
-      SignalHandler.unblock( entry, on_entry_changed_id );
-      entry.select_region(0, -1);
-    }
-  }
   private void on_entry_changed() {
-    if ( timeout_id != 0 )
-      Source.remove( timeout_id );
-    timeout_id = Timeout.add( 300, on_input_timeout );
-  }
-  private bool on_input_timeout() {
-    filter.refilter();
-    timeout_id = 0;
-    return false;
-  } 
-  private bool filter_func( Gtk.TreeModel m, Gtk.TreeIter i ) {
-    string haystack;
-    var needle = entry.text;
-    if ( needle.len() == 0 ) {
-      return true;
-    }
-    m.get( i, 0, out haystack, -1 );
-    return haystack.casefold().contains( needle.casefold() );
-  }
-  private void cell_data_func( Gtk.TreeViewColumn col, Gtk.CellRenderer cr, Gtk.TreeModel mdl, Gtk.TreeIter itr ) {
-    weak string search = entry.text;
-    var search_len = search.len();
-    string item;
-    mdl.get( itr, 0, out item );
-    
-    if ( search_len == 0 ) {
-      (cr as Gtk.CellRendererText).markup = item;
-    }
-    else {
-      string markup, lead, body, tail;
-      string itemi = item.casefold();
-      string searchi = search.casefold();
-      if ( itemi.contains( searchi ) ) {
-        weak string? leadi = itemi.str( searchi );
-        var ofs = itemi.pointer_to_offset( leadi );
-        if ( ofs > 0 ) {
-          lead = item[ 0 : ofs ];
-          markup = "".concat( lead );
-        }
-//        middle = item[ ofs : search_len ];
-//        markup = markup.concat( "<b>", middle, "</b>" );
-//        if ( ofs + search_len < item.len() ) {
-//          tail = item[ ofs + search_len : -1 ];
-//          markup = markup.concat( tail );
-//        }
-      }
-      else {
-        markup = item;
-      }
-
-      (cr as Gtk.CellRendererText).markup = markup;
-    }
+    queue_refilter();
   }
   private void select_last() {
     Gtk.TreeModel mdl;
@@ -208,7 +174,7 @@ class GMenu : Object {
 
   static int main( string[] args ) {
     Gtk.init( ref args );
-    new GMenu().new_window().show_all();
+    new GtkExample().new_window().show_all();
     Gtk.main();
     return 0;
   }
