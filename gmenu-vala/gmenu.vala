@@ -12,10 +12,10 @@ enum Keysym {
 
 class GtkExample : Object {
   private uint timeout_id;
+  private ulong on_entry_changed_id;
   private Gtk.Entry entry;
   private Gtk.TreeView tree_view;
   private Gtk.TreeModelFilter filter;
-  private ulong on_entry_changed_id;
   
   private bool filter_func( Gtk.TreeModel m, Gtk.TreeIter i ) {
     string haystack;
@@ -87,31 +87,54 @@ class GtkExample : Object {
   private void on_entry_changed() {
     queue_refilter();
   }
-  private void select_next_row() {
-    Gtk.TreeModel m;
-    Gtk.TreeIter i, n;
+  private void select_last() {
+    Gtk.TreeModel mdl;
+    Gtk.TreeIter itr, last;
     var sel = tree_view.get_selection();
-    var selected = sel.get_selected( out m, out i );
-//    if ( selected ) {
-//      var next = m.iter_next( ref i );
-//      if ( !next ) {
-//        m.get_iter_first( out i );
-//      }
-//    }
-//    else {
-//      m.get_iter_first( out i );
-//    }
-    tree_view.scroll_to_cell( m.get_path( n ), null, false, 0.0f, 0.0f );
-    sel.select_iter( n );
+    sel.get_selected( out mdl, out itr );
+    while ( mdl.iter_next( ref itr ) ) {
+      last = itr;
+    }
+    if ( last ) {
+      tree_view.scroll_to_cell( mdl.get_path( last ), null, false, 0.0f, 0.0f );
+      sel.select_iter( last );
+    }
   }
-  private void select_previous_row() {
-    Gtk.TreeModel m;
-    Gtk.TreeIter i, n;
+  private void select_next() {
+    Gtk.TreeModel mdl;
+    Gtk.TreeIter itr;
     var sel = tree_view.get_selection();
-    var selected = sel.get_selected( out m, out i );
-    
-    tree_view.scroll_to_cell( m.get_path( i ), null, false, 0.0f, 0.0f );
-    sel.select_iter( i );
+    bool itr_ok = false;
+    if ( sel.get_selected( out mdl, out itr ) ) {
+      itr_ok = mdl.iter_next( ref itr );
+    }
+
+    if ( !itr_ok ) {
+      itr_ok = mdl.get_iter_first( ref itr );
+    }
+
+    if ( itr_ok ) {
+      tree_view.scroll_to_cell( mdl.get_path( itr ), null, false, 0.0f, 0.0f );
+      sel.select_iter( itr );
+    }
+  }
+  private void select_previous() {
+    Gtk.TreeModel mdl;
+    Gtk.TreeIter itr;
+    var sel = tree_view.get_selection();
+    if ( sel.get_selected( out mdl, out itr ) ) {
+      var p = mdl.get_path( ref itr );
+      if ( p.prev() ) {
+        tree_view.scroll_to_cell( p, null, false, 0.0f, 0.0f );
+        sel.select_path( p );
+      }
+      else {
+        select_last();
+      }
+    }
+    else {
+      select_last();
+    }
   }
   private bool on_entry_key_press_event( Gdk.EventKey e ) {
     if ( e.keyval == Keysym.Escape ) {
@@ -119,11 +142,11 @@ class GtkExample : Object {
       return true;
     }
     else if ( e.keyval == Keysym.Tab || e.keyval == Keysym.Down ) {
-      select_next_row();
+      select_next();
       return true;
     }
     else if ( e.keyval == Keysym.Up ) {
-      select_previous_row();
+      select_previous();
       return true;
     }
     return false;
