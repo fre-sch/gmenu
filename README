@@ -1,0 +1,13 @@
+GTK application inspired by dmenu, wimenu, and many others
+
+Also a coding exercise, comparing C, Python and Vala.
+
+All versions work the same:
+- they read lines from STDIN and add each line to a GtkListStore.
+- these can then be searched/filtered by typing text into a GtkEntry.
+- the results can be navigated by Tab or Down to select the next match,
+  or Up to select the previous match.
+- hit ESC to cancel and close window.
+- hit RETURN to print (to STDOUT) either the selected match,
+  or whatever is entered in the GtkEntry.
+
