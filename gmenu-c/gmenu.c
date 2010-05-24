@@ -31,17 +31,25 @@ static void queue_refilter
 
 static gboolean visible_func
 ( GtkTreeModel *model, GtkTreeIter *iter, App *app ){
-  const gchar *needle;
-  gchar *haystack;
-  gboolean result;
+  const gchar *search = gtk_entry_get_text( GTK_ENTRY(app->entry) );
+  gchar *item = NULL;
+  gchar *searchi = NULL;
+  gchar *itemi = NULL;
+  gboolean result = FALSE;
 
-  needle = gtk_entry_get_text( GTK_ENTRY(app->entry) );
-  if( *needle == '\0' )
-      return TRUE;
-  gtk_tree_model_get( model, iter, 0, &haystack, -1 );
+  if ( g_utf8_strlen( search, -1 ) == 0 ) {
+    result = TRUE;
+  }
+  else {
+    gtk_tree_model_get( model, iter, 0, &item, -1 );
+    searchi = g_utf8_casefold( search, -1);
+    itemi = g_utf8_casefold( item, -1 );
+    result = g_strstr_len( itemi, -1, searchi ) != NULL;
+  }
 
-  result = ( strstr( haystack, needle ) ? TRUE : FALSE );
-  g_free( haystack );
+  g_free( itemi );
+  g_free( searchi );
+  g_free( item );
 
   return result;
 }
@@ -171,33 +179,59 @@ static void cellrenderer_data_func
 ( GtkTreeViewColumn *col, GtkCellRenderer *cell, GtkTreeModel *mdl, GtkTreeIter *i, gpointer udata )
 {
   App *app = udata;
-  const gchar *search=NULL;
-  gchar *item=NULL;
-  GString *markup=NULL;
-  gint search_len=0;
-  
-  search = gtk_entry_get_text( GTK_ENTRY(app->entry) );
+  const gchar *search = gtk_entry_get_text( GTK_ENTRY(app->entry) );
+  gchar *item = NULL;
   gtk_tree_model_get( mdl, i, 0, &item, -1 );
-  
-  search_len = strlen( search );
-  
+
+  gint search_len = g_utf8_strlen( search, -1 );
   if ( search_len ) {
-    markup = g_string_new( search );
-    gchar *t1 = strstr( item, search );
-    gchar *t2 = t1 + search_len;
-    g_string_prepend( markup, "<b>");
-    g_string_prepend_len( markup, item, t1 - item );
-    g_string_append( markup, "</b>" );
-    g_string_append( markup, t2 );
-    
-    g_object_set( G_OBJECT(cell), "markup", markup->str, NULL );
+    gchar *searchi = g_utf8_casefold( search, -1 );
+    gchar *itemi = g_utf8_casefold( item, -1 );
+    gchar *leadi = g_strstr_len( itemi, -1, searchi );
+    if ( leadi ) {
+      gint item_len = g_utf8_strlen( item, -1 );
+      glong ofs = g_utf8_pointer_to_offset( itemi, leadi );
+      gint markup_len = strlen( item ) + 7 + 1;
+      gchar *markup = g_malloc0( markup_len );
+      gchar *p_markup = markup;
+      gchar *p_item = g_utf8_offset_to_pointer( item, ofs );
+      
+      /* copy leading characters */
+      g_utf8_strncpy( p_markup, item, ofs );
+
+      /* append start of markup */
+      p_markup = g_utf8_offset_to_pointer( p_markup, ofs );
+      g_utf8_strncpy( p_markup, "<b>", 3 );
+
+      /* copy match */
+      p_markup = g_utf8_offset_to_pointer( p_markup, 3 );
+      g_utf8_strncpy( p_markup, p_item, search_len );
+
+      /* append end of markup */
+      p_markup = g_utf8_offset_to_pointer( p_markup, search_len );
+      g_utf8_strncpy( p_markup, "</b>", 4 );
+
+      /* copy trailing characters */
+      p_markup = g_utf8_offset_to_pointer( p_markup, 4 );
+      p_item = g_utf8_offset_to_pointer( p_item, search_len );
+      ofs = g_utf8_pointer_to_offset( item, p_item );
+      g_utf8_strncpy( p_markup, p_item, item_len - ofs );
+
+      g_object_set( G_OBJECT(cell), "markup", markup, NULL );
+      g_free( markup );
+    }
+    else {
+      g_object_set( G_OBJECT(cell), "markup", item, NULL );
+    }
+
+    g_free( searchi );
+    g_free( itemi );
   }
   else {
     g_object_set( G_OBJECT(cell), "markup", item, NULL );
   }
   
   g_free( item );
-  markup != NULL && g_string_free( markup, TRUE );
 }
 
 int main
