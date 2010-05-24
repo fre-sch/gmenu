@@ -167,6 +167,39 @@ static void fill_model
   }
 }
 
+static void cellrenderer_data_func
+( GtkTreeViewColumn *col, GtkCellRenderer *cell, GtkTreeModel *mdl, GtkTreeIter *i, gpointer udata )
+{
+  App *app = udata;
+  const gchar *search=NULL;
+  gchar *item=NULL;
+  GString *markup=NULL;
+  gint search_len=0;
+  
+  search = gtk_entry_get_text( GTK_ENTRY(app->entry) );
+  gtk_tree_model_get( mdl, i, 0, &item, -1 );
+  
+  search_len = strlen( search );
+  
+  if ( search_len ) {
+    markup = g_string_new( search );
+    gchar *t1 = strstr( item, search );
+    gchar *t2 = t1 + search_len;
+    g_string_prepend( markup, "<b>");
+    g_string_prepend_len( markup, item, t1 - item );
+    g_string_append( markup, "</b>" );
+    g_string_append( markup, t2 );
+    
+    g_object_set( G_OBJECT(cell), "markup", markup->str, NULL );
+  }
+  else {
+    g_object_set( G_OBJECT(cell), "markup", item, NULL );
+  }
+  
+  g_free( item );
+  markup != NULL && g_string_free( markup, TRUE );
+}
+
 int main
 ( int argc, char **argv ) {
   App app;
@@ -223,8 +256,8 @@ int main
   GtkCellRenderer *cell = gtk_cell_renderer_text_new();
   g_object_set( G_OBJECT(cell),
     "ellipsize", PANGO_ELLIPSIZE_START, NULL );
-  gtk_tree_view_insert_column_with_attributes( GTK_TREE_VIEW(app.tree_view),
-    -1, "Name", cell, "text", 0, NULL );
+  gtk_tree_view_insert_column_with_data_func( GTK_TREE_VIEW(app.tree_view),
+    -1, "Name", cell, cellrenderer_data_func, &app, NULL );
 
   gtk_widget_show_all( window );
   gtk_main();
