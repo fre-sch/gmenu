@@ -89,15 +89,15 @@ class GtkExample : Object {
   }
   private void select_last() {
     Gtk.TreeModel mdl;
-    Gtk.TreeIter itr, last;
+    Gtk.TreeIter itr;
     var sel = tree_view.get_selection();
     sel.get_selected( out mdl, out itr );
-    while ( mdl.iter_next( ref itr ) ) {
-      last = itr;
-    }
-    if ( last ) {
-      tree_view.scroll_to_cell( mdl.get_path( last ), null, false, 0.0f, 0.0f );
-      sel.select_iter( last );
+    var n = mdl.iter_n_children( null );
+    if ( n > 0 ) {
+      if ( mdl.iter_nth_child( out itr, null, n - 1 ) ) {
+        tree_view.scroll_to_cell( mdl.get_path( itr ), null, false, 0.0f, 0.0f );
+        sel.select_iter( itr );
+      }
     }
   }
   private void select_next() {
@@ -110,7 +110,7 @@ class GtkExample : Object {
     }
 
     if ( !itr_ok ) {
-      itr_ok = mdl.get_iter_first( ref itr );
+      itr_ok = mdl.get_iter_first( out itr );
     }
 
     if ( itr_ok ) {
@@ -123,7 +123,7 @@ class GtkExample : Object {
     Gtk.TreeIter itr;
     var sel = tree_view.get_selection();
     if ( sel.get_selected( out mdl, out itr ) ) {
-      var p = mdl.get_path( ref itr );
+      var p = mdl.get_path( itr );
       if ( p.prev() ) {
         tree_view.scroll_to_cell( p, null, false, 0.0f, 0.0f );
         sel.select_path( p );
@@ -161,9 +161,12 @@ class GtkExample : Object {
     box.pack_start( new_treeview(), true, true, 0);
     
     var win = new Gtk.Window( Gtk.WindowType.TOPLEVEL );
-    win.title = "GtkExample";
+    win.title = "gmenu";
     win.position = Gtk.WindowPosition.CENTER;
     win.destroy.connect( Gtk.main_quit );
+    win.set_default_size( 240, 320 );
+    win.type_hint = Gdk.WindowTypeHint.DIALOG;
+    win.border_width = 2;
     win.add( box );
     
     return win;
