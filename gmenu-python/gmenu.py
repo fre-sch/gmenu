@@ -6,52 +6,18 @@ import gobject
 import gtk
 import sys
 import os
+from fnmatch import fnmatch, fnmatchcase
 from optparse import OptionParser
 
-class GlobPattern( object ):
-    def __init__( self, pattern="" ):
-        self.pattern = pattern
-        self.compile()
+def match_substr( pattern, subject, use_case ):
+    if use_case:
+        return subject.find( pattern ) != -1
+    return subject.lower().find( pattern.lower() ) != -1
 
-    def compile( self ):
-        self.fn = []
-        l = len( self.pattern )
-        i = 0
-        while i < l:
-            pass
-
-    def match( self, haystack ):
-        i = 0
-        l = len( haystack )
-        m = False
-        for fn in self.fn:
-            if i == l:
-                m = True
-                break
-            i = fn( haystack, i )
-            if i == -1:
-                m = False
-                break
-        return m
-
-    def matcher_any_n( self, end ):
-        def matcher( haystack, i=0 ):
-            return haystack.find( end, i )
-        return matcher
-
-    def matcher_any_1( self ):
-        def matcher( haystack, i=0 ):
-            if start < len( haystack ):
-                return i + 1
-            return -1
-        return matcher
-
-    def matcher_const( self, const ):
-        def matcher( haystack, i=0 ):
-            if haystack.find( const, i ) == i:
-                return i + len( const )
-            return -1
-        return matcher
+def match_glob( pattern, subject, use_case ):
+    if use_case:
+        return fnmatchcase( subject, pattern )
+    return fnmatch( subject, pattern )
 
 class GMenu( gtk.Window ):
     def __init__( self ):
@@ -86,7 +52,9 @@ class GMenu( gtk.Window ):
             action="store_const", dest="mode", const="glob",
             help="use shell style globbing for matching items" )
         self.options, self.args = parser.parse_args( sys.argv )
-        print self.options
+        self.match_fn = match_substr
+        if self.options.mode == "glob":
+            self.match_fn = match_glob
 
     def init_entry( self ):
         self.entry = gtk.Entry()
@@ -201,23 +169,28 @@ class GMenu( gtk.Window ):
             print self.entry.get_text()
 
     def visible_func( self, model, itr ):
-        search = self.entry.get_text()
-        if len( search ):
-            return -1 != model.get_value( itr, 0 ).lower().find( search.lower() )
+        pattern = self.entry.get_text()
+        if len( pattern ):
+            subject = model.get_value( itr, 0 )
+            return self.match_fn( pattern, subject, self.options.case )
         return True
 
     def cellrenderer_data_func( self, col, cell, mdl, itr ):
-        search = self.entry.get_text()
-        search_len = len( search )
-        item = mdl.get_value( itr, 0 )
-        lead_p = item.lower().find( search.lower() )
-        if search and lead_p != -1:
-            lead = item[ : lead_p ]
-            match = item[ lead_p : lead_p + search_len ]
-            tail = item[ lead_p + search_len : ]
-            cell.set_property( "markup", lead + "<b>" + match + "</b>" + tail )
-        else:
+        if self.options.mode is not None:
+            item = mdl.get_value( itr, 0 )
             cell.set_property( "markup", item )
+        else:
+            search = self.entry.get_text()
+            search_len = len( search )
+            item = mdl.get_value( itr, 0 )
+            lead_p = item.lower().find( search.lower() )
+            if search and lead_p != -1:
+                lead = item[ : lead_p ]
+                match = item[ lead_p : lead_p + search_len ]
+                tail = item[ lead_p + search_len : ]
+                cell.set_property( "markup", lead + "<b>" + match + "</b>" + tail )
+            else:
+                cell.set_property( "markup", item )
 
 if __name__ == "__main__":
     GMenu().show_all()
