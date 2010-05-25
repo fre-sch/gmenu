@@ -88,6 +88,7 @@ class GMenu( gtk.Window ):
             itr = mdl.get_iter_first()
             itrok = itr is not None
         if itrok:
+            self.view.scroll_to_cell( mdl.get_path( itr ) )
             sel.select_iter( itr )
 
     def select_last( self ):
@@ -120,7 +121,7 @@ class GMenu( gtk.Window ):
         elif e.keyval == gtk.keysyms.Tab or e.keyval == gtk.keysyms.Down:
             self.select_next()
             return True
-        elif e.keyval == gtk.keysyms.Up:
+        elif e.state & gtk.gdk.SHIFT_MASK and e.keyval == gtk.keysyms.ISO_Left_Tab or e.keyval == gtk.keysyms.Up:
             self.select_previous()
             return True
         elif e.keyval == gtk.keysyms.Return:
