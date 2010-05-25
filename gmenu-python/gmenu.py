@@ -1,14 +1,62 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 # vim:et ts=4 sw=4:
+
 import gobject
 import gtk
 import sys
 import os
+from optparse import OptionParser
+
+class GlobPattern( object ):
+    def __init__( self, pattern="" ):
+        self.pattern = pattern
+        self.compile()
+
+    def compile( self ):
+        self.fn = []
+        l = len( self.pattern )
+        i = 0
+        while i < l:
+            pass
+
+    def match( self, haystack ):
+        i = 0
+        l = len( haystack )
+        m = False
+        for fn in self.fn:
+            if i == l:
+                m = True
+                break
+            i = fn( haystack, i )
+            if i == -1:
+                m = False
+                break
+        return m
+
+    def matcher_any_n( self, end ):
+        def matcher( haystack, i=0 ):
+            return haystack.find( end, i )
+        return matcher
+
+    def matcher_any_1( self ):
+        def matcher( haystack, i=0 ):
+            if start < len( haystack ):
+                return i + 1
+            return -1
+        return matcher
+
+    def matcher_const( self, const ):
+        def matcher( haystack, i=0 ):
+            if haystack.find( const, i ) == i:
+                return i + len( const )
+            return -1
+        return matcher
 
 class GMenu( gtk.Window ):
     def __init__( self ):
         super( GMenu, self ).__init__( gtk.WINDOW_TOPLEVEL )
+        self.init_options()
         self.set_position( gtk.WIN_POS_CENTER )
         self.set_default_size( 240, 320 )
         self.set_type_hint( gtk.gdk.WINDOW_TYPE_HINT_DIALOG );
@@ -25,6 +73,20 @@ class GMenu( gtk.Window ):
         lbox.pack_start( self.entry, False, True )
         lbox.pack_start( sw, True, True )
         self.add( lbox )
+
+    def init_options( self ):
+        parser = OptionParser()
+        parser.add_option( "-i",
+            action="store_true", dest="case", default=False,
+            help="use case when matching items" )
+        parser.add_option( "-r",
+            action="store_const", dest="mode", const="regex",
+            help="use regular expression for matching items" )
+        parser.add_option( "-g",
+            action="store_const", dest="mode", const="glob",
+            help="use shell style globbing for matching items" )
+        self.options, self.args = parser.parse_args( sys.argv )
+        print self.options
 
     def init_entry( self ):
         self.entry = gtk.Entry()
