@@ -30,7 +30,8 @@ class GMenu( gtk.Window ):
         self.entry = gtk.Entry()
         self.on_entry_key_press_id = self.entry.connect(
             "key-press-event", self.on_entry_key_press )
-        self.entry.connect( "changed", self.on_entry_changed )
+        self.on_entry_changed_id = self.entry.connect(
+            "changed", self.on_entry_changed )
 
     def init_model( self ):
         model = gtk.ListStore( str )
@@ -44,6 +45,8 @@ class GMenu( gtk.Window ):
         self.view = gtk.TreeView( self.filter )
         self.view.set_headers_visible( False )
         self.view.set_search_column( 0 )
+        self.view.get_selection().connect( "changed",
+          self.on_selection_changed )
 
         renderer = gtk.CellRendererText()
         renderer.ellipsize = True
@@ -55,7 +58,16 @@ class GMenu( gtk.Window ):
         sw.set_shadow_type( gtk.SHADOW_IN )
         sw.add( self.view )
         return sw
-        
+
+    def on_selection_changed( self, sel ):
+        mdl, itr = sel.get_selected()
+        if itr:
+            item = mdl.get_value( itr, 0 )
+            self.entry.handler_block( self.on_entry_changed_id )
+            self.entry.set_text( item )
+            self.entry.select_region( 0, -1 )
+            self.entry.handler_unblock( self.on_entry_changed_id )
+
     def on_entry_changed( self, entry ):
         if self.queue_refilter_id:
             gobject.source_remove( self.queue_refilter_id )
@@ -128,17 +140,19 @@ class GMenu( gtk.Window ):
     def visible_func( self, model, itr ):
         search = self.entry.get_text()
         if len( search ):
-            return -1 != model.get_value( itr, 0 ).find( search )
+            return -1 != model.get_value( itr, 0 ).lower().find( search.lower() )
         return True
 
     def cellrenderer_data_func( self, col, cell, mdl, itr ):
         search = self.entry.get_text()
+        search_len = len( search )
         item = mdl.get_value( itr, 0 )
-        lead_p = item.find( search )
+        lead_p = item.lower().find( search.lower() )
         if search and lead_p != -1:
-            lead = item[:lead_p]
-            tail = item[lead_p + len(search):]
-            cell.set_property( "markup", lead + "<b>" + search + "</b>" + tail )
+            lead = item[ : lead_p ]
+            match = item[ lead_p : lead_p + search_len ]
+            tail = item[ lead_p + search_len : ]
+            cell.set_property( "markup", lead + "<b>" + match + "</b>" + tail )
         else:
             cell.set_property( "markup", item )
 
