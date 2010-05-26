@@ -9,6 +9,12 @@ import os
 from fnmatch import fnmatch, fnmatchcase
 from optparse import OptionParser
 
+def model_get_iter_last( model, parent=None ):
+  """Returns a gtk.TreeIter to the last row or None if there aren't any rows.
+  If parent is None, returns a gtk.TreeIter to the last root row."""
+  n = model.iter_n_children( parent )
+  return n and model.iter_nth_child( parent, n - 1 )
+
 def match_substr( pattern, subject, use_case ):
     if use_case:
         return subject.find( pattern ) != -1
@@ -124,12 +130,10 @@ class GMenu( gtk.Window ):
     def select_last( self ):
         sel = self.view.get_selection()
         mdl, itr = sel.get_selected()
-        n = mdl.iter_n_children( None )
-        if n:
-            itr = mdl.iter_nth_child( None, n - 1 )
-            if itr:
-                self.view.scroll_to_cell( mdl.get_path( itr ) )
-                sel.select_iter( itr )
+        itr = model_get_iter_last( mdl )
+        if itr:
+            self.view.scroll_to_cell( mdl.get_path( itr ) )
+            sel.select_iter( itr )
 
     def select_previous( self ):
         sel = self.view.get_selection()
