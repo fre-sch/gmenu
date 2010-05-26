@@ -59,6 +59,26 @@ static void entry_on_changed
 {
   queue_refilter( app );
 }
+/**
+ * Set itr_last to last item of parent if parent has any rows.
+ * If parent is NULL, set itr_last to last root row.
+ * Returns TRUE if itr_last could be set, otherwise FALSE.
+ */
+static gboolean model_get_iter_last
+( GtkTreeModel *model, GtkTreeIter *itr_last, GtkTreeIter *parent )
+{
+  gboolean success;
+  gint n;
+
+  if ( (n = gtk_tree_model_iter_n_children( model, parent ) ) ) {
+    success = gtk_tree_model_iter_nth_child( model, itr_last, parent, n - 1 );
+  }
+  else {
+    itr_last = NULL;
+    success = FALSE;
+  }
+  return success;
+}
 
 static void select_next
 ( App *app )
@@ -85,31 +105,19 @@ static void select_previous
   GtkTreeSelection *sel = gtk_tree_view_get_selection( GTK_TREE_VIEW(app->tree_view) );
   GtkTreeModel *filter = NULL;
   GtkTreeIter i;
-  GtkTreePath *p = NULL;
   if ( gtk_tree_selection_get_selected( sel, &filter, &i ) ) {
-    p = gtk_tree_model_get_path( filter, &i );
+    GtkTreePath *p = gtk_tree_model_get_path( filter, &i );
     if ( gtk_tree_path_prev( p ) ) {
       gtk_tree_selection_select_path( sel, p );
     }
-    else {
-      GtkTreeIter l;
-      while ( gtk_tree_model_iter_next( filter, &i) ) {
-        l = i;
-      }
-      gtk_tree_selection_select_iter( sel, &l );
+    else if ( model_get_iter_last( filter, &i, NULL ) ) {
+      gtk_tree_selection_select_iter( sel, &i );
     }
+    gtk_tree_path_free( p );
   }
-  else {
-    GtkTreeIter l;
-    if ( gtk_tree_model_get_iter_first( filter, &i ) ) {
-      while ( gtk_tree_model_iter_next( filter, &i) ) {
-        l = i;
-      }
-      gtk_tree_selection_select_iter( sel, &l );
-    }
+  else if ( model_get_iter_last( filter, &i, NULL ) ) {
+    gtk_tree_selection_select_iter( sel, &i );
   }
-  
-  gtk_tree_path_free( p );
 }
 static void print_result( App *app ) {
   GtkTreeSelection *sel = gtk_tree_view_get_selection( GTK_TREE_VIEW(app->tree_view) );
