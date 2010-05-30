@@ -1,18 +1,42 @@
+#define _GNU_SOURCE
 #include <assert.h>
+#include <fnmatch.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include <string.h>
+
+typedef gboolean (*MatchFunc)( const char*, const char* );
 
 typedef struct App {
   gint exit_status;
   gint queue_refilter_id;
   gulong entry_on_changed_id;
   
+  MatchFunc match_fn;
   GtkWidget *entry;
   GtkWidget *tree_view;
   GtkTreeModel *filter;
 } App;
 
+static gboolean submatch_casefold
+( const char *search, const char *subject ) {
+    gboolean result;
+    gchar *searchi = g_utf8_casefold( search, -1);
+    gchar *subjecti = g_utf8_casefold( subject, -1 );
+    result = g_strstr_len( subjecti, -1, searchi ) != NULL;
+    g_free( searchi );
+    g_free( subjecti );
+    return result;
+}
+
+static gboolean fnmatch_casefold
+( const char *search, const char *subject ) {
+  gboolean result;
+  gchar *pattern = g_strconcat( "*", search, "*", NULL );
+  result = fnmatch( pattern, subject, FNM_CASEFOLD ) == 0;
+  g_free( pattern );
+  return result;
+}
 
 static gboolean do_refilter
 ( App *app ) {
@@ -33,8 +57,6 @@ static gboolean visible_func
 ( GtkTreeModel *model, GtkTreeIter *iter, App *app ){
   const gchar *search = gtk_entry_get_text( GTK_ENTRY(app->entry) );
   gchar *item = NULL;
-  gchar *searchi = NULL;
-  gchar *itemi = NULL;
   gboolean result = FALSE;
 
   if ( g_utf8_strlen( search, -1 ) == 0 ) {
@@ -42,13 +64,9 @@ static gboolean visible_func
   }
   else {
     gtk_tree_model_get( model, iter, 0, &item, -1 );
-    searchi = g_utf8_casefold( search, -1);
-    itemi = g_utf8_casefold( item, -1 );
-    result = g_strstr_len( itemi, -1, searchi ) != NULL;
+    result = app->match_fn( search, item );
   }
 
-  g_free( itemi );
-  g_free( searchi );
   g_free( item );
 
   return result;
@@ -196,10 +214,10 @@ static void cellrenderer_data_func
 ( GtkTreeViewColumn *col, GtkCellRenderer *cell, GtkTreeModel *mdl, GtkTreeIter *i, gpointer udata )
 {
   App *app = udata;
-  const gchar *search = gtk_entry_get_text( GTK_ENTRY(app->entry) );
   gchar *item = NULL;
   gtk_tree_model_get( mdl, i, 0, &item, -1 );
-
+#if 0
+  const gchar *search = gtk_entry_get_text( GTK_ENTRY(app->entry) );
   gint search_len = g_utf8_strlen( search, -1 );
   if ( search_len ) {
     gchar *searchi = g_utf8_casefold( search, -1 );
@@ -240,14 +258,14 @@ static void cellrenderer_data_func
     else {
       g_object_set( G_OBJECT(cell), "markup", item, NULL );
     }
-
     g_free( searchi );
     g_free( itemi );
   }
   else {
     g_object_set( G_OBJECT(cell), "markup", item, NULL );
   }
-  
+#endif
+  g_object_set( G_OBJECT(cell), "text", item, NULL );
   g_free( item );
 }
 
@@ -255,6 +273,7 @@ int main
 ( int argc, char **argv ) {
   App app;
   app.exit_status = 1;
+  app.match_fn = fnmatch_casefold;
 
   gtk_init( &argc, &argv );
 
