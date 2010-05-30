@@ -1,0 +1,27 @@
+#!/bin/sh
+CACHE="/tmp/$USER.gmenu.cache"
+IFS=:
+
+uptodate() {
+	test -f "$CACHE" &&
+	for dir in $PATH
+	do
+		test ! "$dir" -nt "$CACHE" || return 1
+	done
+}
+
+if ! uptodate
+then
+	for dir in $PATH
+	do
+		cd "$dir" 2>/dev/null &&
+		for file in *
+		do
+			test -x "$file" && echo "$file"
+		done
+	done | sort | uniq > "$CACHE".$$ &&
+	mv "$CACHE".$$ "$CACHE"
+fi
+
+cat "$CACHE"
+
