@@ -136,15 +136,20 @@ static void print_result( App *app ) {
 static gboolean entry_on_key_press
 ( GtkWidget *w, GdkEventKey *e, App *app )
 {
+  gboolean tab_pressed = (e->keyval == GDK_Tab);
+  gboolean shift_tab_pressed = (
+    e->state & GDK_SHIFT_MASK
+    && e->keyval == GDK_ISO_Left_Tab
+  );
   if ( e->keyval == GDK_Escape ) {
     gtk_main_quit();
     return TRUE;
   }
-  else if ( e->keyval == GDK_Tab || e->keyval == GDK_Down ) {
+  else if ( tab_pressed || e->keyval == GDK_Down ) {
     select_next( app );
     return TRUE;
   }
-  else if ( e->keyval == GDK_Up ) {
+  else if ( shift_tab_pressed || e->keyval == GDK_Up ) {
     select_previous( app );
     return TRUE;
   }
@@ -163,6 +168,10 @@ static void selection_changed
   gchar *text;
   if ( gtk_tree_selection_get_selected( sel, &filter, &i ) ) {
     gtk_tree_model_get( filter, &i, 0, &text,  -1);
+    GtkTreePath *p = gtk_tree_model_get_path( filter, &i );
+    gtk_tree_view_scroll_to_cell( GTK_TREE_VIEW(app->tree_view), p, NULL, FALSE, 0.0, 0.0 );
+    gtk_tree_path_free( p );
+
     g_signal_handler_block( G_OBJECT(app->entry), app->entry_on_changed_id );
     gtk_entry_set_text( GTK_ENTRY(app->entry), text );
     gtk_editable_select_region( GTK_EDITABLE(app->entry), 0, -1 );
