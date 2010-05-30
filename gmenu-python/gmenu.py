@@ -99,6 +99,8 @@ class GMenu( gtk.Window ):
         mdl, itr = sel.get_selected()
         if itr:
             item = mdl.get_value( itr, 0 )
+            self.view.scroll_to_cell( mdl.get_path( itr ) )
+            
             self.entry.handler_block( self.on_entry_changed_id )
             self.entry.set_text( item )
             self.entry.select_region( 0, -1 )
@@ -124,7 +126,6 @@ class GMenu( gtk.Window ):
             itr = mdl.get_iter_first()
             itrok = itr is not None
         if itrok:
-            self.view.scroll_to_cell( mdl.get_path( itr ) )
             sel.select_iter( itr )
 
     def select_last( self ):
@@ -132,7 +133,6 @@ class GMenu( gtk.Window ):
         mdl, itr = sel.get_selected()
         itr = model_get_iter_last( mdl )
         if itr:
-            self.view.scroll_to_cell( mdl.get_path( itr ) )
             sel.select_iter( itr )
 
     def select_previous( self ):
