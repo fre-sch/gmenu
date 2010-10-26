@@ -1,4 +1,5 @@
 #!/bin/sh
 GMENU=/home/frederik/Projects/gmenu/gmenu-c/gmenu
 GMENU_PATH=/home/frederik/Projects/gmenu/gmenu_path
-exe=`$GMENU_PATH | $GMENU ${1+"$@"}` && ( exec setsid "$exe" & )
+
+( exec setsid $($GMENU_PATH | $GMENU ${1+"$@"}) & )

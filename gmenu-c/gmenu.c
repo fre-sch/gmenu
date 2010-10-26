@@ -31,11 +31,7 @@ static gboolean submatch_casefold
 
 static gboolean fnmatch_casefold
 ( const char *search, const char *subject ) {
-  gboolean result;
-  gchar *pattern = g_strconcat( "*", search, "*", NULL );
-  result = fnmatch( pattern, subject, FNM_CASEFOLD ) == 0;
-  g_free( pattern );
-  return result;
+  return fnmatch( search, subject, FNM_CASEFOLD ) == 0;
 }
 
 static gboolean do_refilter
@@ -273,7 +269,8 @@ int main
 ( int argc, char **argv ) {
   App app;
   app.exit_status = 1;
-  app.match_fn = fnmatch_casefold;
+/*  app.match_fn = fnmatch_casefold; */
+  app.match_fn = submatch_casefold;
 
   gtk_init( &argc, &argv );
 
